@@ -1,0 +1,1780 @@
+{
+ ****************************************************************************************************************
+ *                                                                                                              *
+ *  AMAZING MAZE RACE versjon 5                                                                                 *
+ *  Dette programmet er en del av hovedprosjektet, prosjekt i praksis 1.klasse ved Fagskolen Tinius Olsen -     *
+ *  Kongsberg. Programmet tilhører en fremvisningsmodell skolen benytter ved messer på stand.                   *
+ *  Software er skrevet for og som et interaktivt spill, der spilleren skal føre en strømledende ring           *
+ *  igjennom en ledende hinderløype.                                                                            *
+ *                                                                                                              *
+ *  Spill                                                                                                       *
+ *   Når man ønsker å starte et spill vil spilleren via skjermen i kofferten bli instruert til å skrive inn     *
+ *   sitt eget navn. Programmet vil så gi en forklaring på hvordan spilleren skal forberede seg i forhold       *
+ *   til spillets start via innspillte instrukser på høyttaler anlegget. Når spillet starter skal spilleren     *
+ *   forsøke å bevege den strømførende ringen langs den elektriske rammen uten å komme borti rammen med         *
+ *   ringen. Utfordringen i spillet er at røret som den elektriske rammen består av ligger inni ringens         *
+ *   omkrets, og ringen er derfor låst til den elektriske rammen.                                               *
+ *                                                                                                              *
+ *   Når spilleren har startet spillet vil programmet starte å telle nedover en poengsum fra 1000 til 0         *
+ *   poeng (tar ca 2 Minutter), og det vil registreres antall ganger spilleren kommer borti den elektriske      *
+ *   rammen med den strømførende ringen. Registrerer systemet ett treff vil vibratoren i håndtaket vibrere      *
+ *   og poengsummen vil falle 75 poeng. Dersom systemet registrerer mer enn 5 treff på den elektriske rammen    *
+ *   vil poengsummen øyeblikkelig falle til 0 og spillet er tapt.                                               *
+ *                                                                                                              *
+ *   Den strømførende ringen er koblet til en konstant 5 volt slik at dersom man kommer borti den elektriske    *
+ *   rammen vil en liten strøm bli ledet via rammen til kretskortet vi har konstruert. På kretskortet vil       *
+ *   strømmen gå til en optokobler som gir galvanisk skille og åpner slik at det går 3,3 Volt med en liten      *
+ *   strøm til inngang P7 på Paralaxx Microcontrolleren. Når Paralaxx microcontrolleren får signalet vil den    *
+ *   registerer pluss ett treff som den vil vise på skjermen. Microcontrolleren vil også aktivere utgang P5     *
+ *   som gir signal til en optokobler. Optokobleren gir videre et signal til en MOSFET som åpner for signal     *
+ *   inn til vibratormotoren i håndtaket til spillet som da vil vibrere.                                        *
+ *                                                                                                              *
+ *  Lyd                                                                                                         *
+ *   Lydanlegget i kofferten består av et forsterkerkretskort, en subwoofer og to høyttalere samt en ekstern    *
+ *   volumkontroll. I microcontrolleren er det en lyddriver som leser av rå riff filer som som                  *
+ *   Digital/Analog converteren konverter til en wav fil, og forsterker før den blir sendt fra utgang           *
+ *   P26 og P27. Lydsignalet går da rett til lydinngangen på forsterkeren som sender det videre til             *
+ *   høyttalerne og subwooferen. Musikken som blir avspilt ligger lagret på en SD minnebrikke som               *
+ *   microcontrolleren leser av.                                                                                *
+ *                                                                                                              *
+ *  Lys                                                                                                         *
+ *   Lysanlegget i kofferten består av fire RGB LED striper som blir styrt av programmet i microcontrolleren.   *
+ *   Microcontrolleren leser fra programmet hvilke forskjellige farger som skal aktiveres til en gitt tid,      *
+ *   før den sender signalet fra utganger P2, P3 og/eller P4. Disse utgangene gir signal til hver sin           *
+ *   optokobler som igjen gir signal til hver sin MOSFET som sender signal videre til enten de grønne, blå      *
+ *   eller røde LEDene som da lyser opp.                                                                        *
+ *                                                                                                              *
+ *  Skjerm og tastatur                                                                                          *
+ *   Tastaturet benyttes til å navigere i programmet samt taste inn navn på spilleren. Tastaturet gir           *
+ *   signaler direkte til innganger P10 og P11 på microcontrolleren som tolker disse og sender signalet         *
+ *   videre fra utganger P13, P14 og P15 til både LCD skjermen og den eksterne RCA kontakten.                   *
+ *                                                                                                              *
+ ****************************************************************************************************************
+ * Teksten er et utdrag av hovedrapporten og gjenngitt etter samtykke av prosjektgruppen                        *
+ ****************************************************************************************************************
+
+' ////////////////////////////////////////////////////
+' TODO!
+' ////////////////////////////////////////////////////
+
+ OK: OK
+ UW: Under Work
+ Test: Testfase, delvis lagt til debug, må fjernes manuelt!
+ IP: Ikke påbegynt
+ 
+
+  * Vinnerskjerm                 | OK
+  * Game over                    | OK
+  * Spillmodus                   | OK
+  * Initialisering               | OK
+  * Boot                         | OK
+  * Titleskjerm                  | OK
+  * Handlerutiner                | OK
+  * Tekstplassering på skjerm    | OK
+  * Tallbehandling på skjerm     | OK
+  * Wavspiller                   | OK - Endret sample og tonehøyde 22.5.14
+  * FDRW                         | OK - FDRW er byttet ut med DAC/SD-MMC_FATEngine, denne er strippet betraktelig ned!
+  * Rydd opp i variabler         | OK
+  * Rydd opp i konstanter        | OK
+  * Komplementer kommentarer     | OK
+  * Sett release                 | OK
+  * Rydd opp i autodokumentasjon | OK
+  * Legg til Siste spilte        | OK
+  * Skjermbeskytter/skoleinfo    | OK
+
+  Resterende BUILD-liste falt vekk under konvertering :/
+  
+  BUILD 90:
+  Skrevet alt på nytt! (Ny skjermdriver)
+  BUILD 92:
+  Lagt inn Errorhandling (ERH) Samt endret rutiner i MainHandler.
+  Lagt til nye faser for å skille mellom BOOT og INIT. Må jobbe mer med restart av spill så vi slipper
+  at vi kjører komplett boot etter endt spill...
+  Lagt inn by "pling" etter ferdig og vellykket boot, ikke lagt routing til ERH ennå.
+  BUILD 93:
+  Lagt inn dokumentasjonsliste
+  BUILD 94:
+  Lagt inn OP.
+  Implementert OP i SW. Lagt til PRI ScoreScreen. Neste nå må bli å prøve å lage en topp liste.
+  BUILD 95:
+  Lagt inn ny fargemix i spillmodus.
+  BUILD 96:
+  Lagt inn og testet vibrakrets, men må fysisk bytte utgang for vibrator til utgang 4 siden WAVspiller benytte
+  utgang 0 til noe...!
+  BUILD 97:
+  Lagt inn errorhandler i boot/init
+  i tillegg lagt inn en loadindikator. RELEASE 5!
+  BUILD 98:
+  Fikset ny tastaturdriver! Feil i Tastatur var at annet objekt bruker pin 12 (trur dette ligger som hardcode i skjerm/tv driver i ASM
+  derfor hoppet vi glatt over dette for denne gang, og benytter derfor standard Parallax "keyboard.spin")
+  NY MCU! gikk bort fra C3 da denne har en tragisk dårlig lydutgang, tilbake igjen på Parallax Activity Board, litt dyrere, men desto bedre
+  onboard komponenter. Derfor en del omskriving som det var før BUILD 90. Derfor er vi nå oppe i RELEASE 6 og nytt navn: "MAZE005.spin"
+  BUILD 99:
+  Innganger for MAZE og MÅL er definert og testet. Installert 220K motstand mellom MCU og optokobler for å trekke inngangen til
+  referansepunkt. Nå virker restart av spillet etter endt spill, men jobber fortsatt med en "siste spilte" liste...
+  Ryddet opp i program, lagt inn mer autodokumentasjon samt ERF/ERH!
+  Veiledning for ERF/ERH: ERH(ERF) hvor ERF er rutinenummer som feilet, rutinenummeret står i header på hver rutine og SKAL oppdateres
+  for hver nye rutine som lages. ERH mottar nå rutinenummer kontinuerlig fra Main, dersom ERF > 0 vil ERH tvinge overtagelse av programmet.
+  BUILD 100-101:
+  (mye småretting på kosmetiske feil)
+  Fikset poengoversikt i FOCUS_TITLE, fikset WORD-kopiering i PRI: DoScoreBoard.
+  BUILD 102:
+  Skjermbeskytter!
+  Lagt inn ny FOCOS, FOCUS_PAUSE: timer teller opp i FOCUS_TITLE (F_PAUSE), skjermbeskytteren avsluttes med ENTER, 4.txt kommer på
+  skjermen i pausemodus. Hittill ligger info om Fagskolen Tinius Olsen og BFK.
+  RELEASE 8
+  BUILD 103:
+  Lagt inn tilgang til skjermsparer fra FOCUS_SCORE og FOCUS_TITLE.
+  Build 104:
+  Lagt inn hicntr og nye HIT-array for 1-3 spill, samt lagt inn titteltekst (forklaring Navn, Score, Hit) i FOCUS_TITLE
+  Utført stresstest med medstudenter som spillere, alt ser ut til å fungere så nå settes Release 9 og Final!
+  Build 105:
+  Change of the timing before game start, reduced the waiting time from 9 to 2 sec. removed the sound file "game starts, please get ready".
+  now the timing should be 1 secound, and there should be one "ding" before the game starts.
+  Change of init-points from 1000 to 1100!
+  Boot-routine is longer due to SD-card mounting procedure. Now the SD-card has 2 sec instead of 0,5 sec to mount before use...
+  ERF 19, INT 300 Light keeps on after initial boot.
+  
+
+
+  Ønske:
+  Lag ny hovedskjerm hvor det listes opp toppscore, lag ny PRI hvor score, navn og hitcntr legges inn i ny ARRAY! FIFO!
+  Mulighet for å avbryte spill og restarte spill (ESC).
+  Utført! Build 101.
+
+*************************************************************
+** VIKTIG!
+*************************************************************
+** Dersom man ønsker en ren reset, uten å utføre en reboot
+** av MCU kan dette utføres på følgende måte:
+** GAME_FLAG := FLAG_ERROR
+** ERF := 0
+** Dersom denne kombinasjonen oppstår vil MainHandler sende
+** spillet tilbake til en "Warmstart" igjennom full INIT!
+** ingen data blir slettet, men FSRW og WAV-DAC vil restare. 
+*************************************************************
+
+*************************************************************
+** Credits:
+*************************************************************
+We would like to dedicate a big thanks to the developers of the following objects:
+
+tv_wtext.spin - Phil Pilgrim, Michael Green, 2008
+Keyboard.spin - Chip Gracey, Parallax, 2004
+Strings.spin  - Brandon Nimon, Parallax, 2009
+Output.spin   - Parallax inc, (unknown year)
+V2-WAV_DACEngine.spin - Kwabena W. Agyeman, 2013
+SD-MMC_FATEngine - Kwabena W. Agyeman, 2011       (modified/shortened version - Einar T. Lervik, 2014)
+
+*************************************************************
+** Thank you all for great work!
+*************************************************************
+}
+CON
+
+  ' Board og CPU-klokke
+  ' Parallax Activity Board
+
+   _clkmode  = xtal1 + pll16x
+   _xinfreq  = 5_000_000
+
+  ' Programversion:
+
+  VERSION        = 5
+  RELEASE        = 9
+  BUILD          = 105
+  FINAL          = 1
+
+  ' Secure Digital og WAV-DAC:
+
+  lPin           = 26                          ' Venstre kanal
+  rPin           = 27                          ' Høyre kanal
+  doPin          = 22                          ' MISO (DO)
+  clkPin         = 23                          ' Clock
+  diPin          = 24                          ' MOSI (DI)
+  csPin          = 25                          ' Card select
+  wpPin          = -1                          ' Skrivebeskyttelse
+  cdPin          = -1                          ' Card detect
+
+  ' I/O innstillinger
+
+  MAZE           = 6  ' Inngang MAZE PortA-MCU.6         
+  MAL            = 7  ' Inngang Mål PortA-MCU.7
+  LED_GREEN      = 2  ' Utg PortA-MCU.2
+  LED_BLUE       = 3  ' Utg PortA-MCU.3
+  LED_RED        = 4  ' Utg PortA-MCU.4
+
+  ' FOCUS konstanter (GUI handling)
+
+  FOCUS_INIT     = 0  ' Initskjerm
+  FOCUS_TITLE    = 1  ' Tittelskjerm 
+  FOCUS_START    = 2  ' Oppstartsvindu (navn)
+  FOCUS_PLAY     = 3  ' Spillskjerm
+  FOCUS_END      = 4  ' Spill slutt
+  FOCUS_SCORE    = 5  ' Scoreskjerm
+  FOCUS_PAUSE    = 6  ' Pauseskjerm
+  
+  ' Program flags
+
+  FLAG_INIT      = 0  ' boot not done
+  FLAG_RUN       = 1  ' system booted, drivers loaded
+  FLAG_2ND_RUN   = 2  ' Neste oppstart
+  FLAG_ERROR     = 3  ' Guru fault
+
+  F_PAUSE        = 300 ' scan (clkfreq/2+cnt) før "skjermbeskytter"
+  INIT_POINTS    = 1100
+  DEBUG          = FALSE ' Debug av/på (Fin funksjon, men scantiden går betraktelig ned
+                         ' det utføres utrolig mange reltime kalkulasjoner under scan, så VCL sliter med å
+                         ' oppdatere alle tallene realtime. Men fin å benytte for feilsøking.
+                         ' Det ligger en DEBUG-rutine i alle rutiner!.
+  
+  ' Farger
+
+  Svart          = 0
+  Lavender       = 1                      
+  Bla            = 2                    
+  Aqua           = 3                   
+  Gronn          = 4        
+  Gul            = 5               
+  Orange         = 6            
+  Rod            = 7               
+  Hvit           = 8                       
+  LavenderINV    = 9        
+  BlaINV         = 10                 
+  AquaINV        = 11        
+  GronnINV       = 12              
+  GulINV         = 13     
+  OrangeINV      = 14       
+  RodINV         = 15       
+
+  ' Videodriver
+
+  ScreenW        = 44
+  ScreenH        = 15              
+  TV_BASE_PIN    = 13
+  
+                         
+VAR
+
+  ' Spilltellere:
+  
+  long int          ' Initteller
+  long title        ' Tittelteller
+  long Score        ' Score
+  long HitCntr      ' Treffteller
+  long ld           ' Loaderindikator
+  byte gflag        ' Triggerflagg for innganger.
+  byte init
+
+
+  ' ScoreBoard:
+  
+  word Score1STName[20]   ' Name of 3rd player
+  word Score2NDName[20]   ' Name of 3rd player
+  word Score3RDName[20]   ' Name of 3rd player
+  word Score4THName[20]
+  long Score1ST[20]       ' 0-255
+  long Score2ND[20]       ' 0-255
+  long Score3RD[20]       ' 0-255
+  LONG Hit1ST[5]          ' 0-15
+  LONG Hit2ND[5]          ' 0-15
+  LONG Hit3RD[5]          ' 0-15
+  
+  ' Focus og flagg:
+  
+  byte GAME_FOCUS         ' Spillfokus
+  byte GAME_FLAG          ' Spillflagg
+  byte ERF                ' Errorkodeindikator
+  byte Gameplay           ' Gameflag, for å bygge GUI ved første scan.
+  byte PlayRound
+ 
+  ' Tastatur
+  
+  word kb[20]
+  long keycode
+
+
+
+OBJ
+  text  : "tv_wtext" 'the TV display driver
+  key   : "keyboard"
+  stg   : "Strings.spin"
+  op    : "Output.spin"
+  wav   : "V2-WAV_DACEngine.spin"
+  SD    : "SD-MMC_FATEngine.spin" 
+  
+PUB start 
+
+'' ////////////////////////////////////////////////////
+'' Start
+'' Her skjer det ikke stort annet enn å sette flagg og
+'' kritiske variabler, neste er INIT!
+'' BOOTSEKVENS!
+'' ERF : 1
+' ////////////////////////////////////////////////////
+  ERF := 1
+
+    'start the tv text driver
+
+    PlayRound := 0
+    gameplay := 0
+
+    text.start(TV_BASE_PIN) 
+    InitGame
+    init:=0
+    
+PRI InitGame
+
+'' ////////////////////////////////////////////////////
+'' INITGAME
+'' Hovedinitialisering
+'' BOOTSEKVENS!
+'' ERF : 2
+' ////////////////////////////////////////////////////
+  ERF := 2
+
+
+     ' 0123456789012345678901234567890123456789
+' 0              Amazing Maze Race              (@brand:11,0)
+' 1   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 3)       
+' 2                                             (Window 1)
+' 3                                             (Window 6)
+' 4                                                  |
+' 5                                                  |
+' 6                                                  |
+' 7                                                  |
+' 8                                             (Window 6)
+' 9   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 4)
+' 10  Spillerens navn                           (@KB:0,10) (Window 2)
+' 11  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 5)
+' 12   Score: (2,12)                Treff:  (29,12)
+' 13   @Score:2,13                  @HitCntr:29,13
+
+       text.setwindow(1, 0, 02, ScreenW, 1)
+       text.setwindow(2, 0, 10, 01, 1)
+       text.setwindow(3, 0, 01, ScreenW, 1)
+       text.setwindow(4, 0, 09, ScreenW, 1)
+       text.setwindow(5, 0, 11, ScreenW, 1)
+       text.setwindow(6, 0, 03, ScreenW, 6)
+
+  if game_flag == FLAG_2ND_RUN
+      gflag := 0
+      ld:=0
+      int := 50
+      Score := INIT_POINTS            ' Score andre restart
+      GamePlay := 0
+      HitCntr := 0                    ' Treff andre restart
+  else
+
+
+    gflag := 0
+    ld:=0
+    int := 0
+    GAME_FOCUS := FOCUS_INIT
+    GAME_FLAG := FLAG_INIT
+    Score := INIT_POINTS              ' Score første boot
+    ERF := 0
+    HitCntr := 0                      ' Treff første boot
+    int:= 150
+    title:=100
+    key.clearkeys                     ' Slett tastaturbuffer
+    waitcnt(5_000_000 + cnt)
+    MainHandler
+    
+
+PUB MainHandler  | i
+
+'' ////////////////////////////////////////////////////
+'' MainHandler
+'' Her skjer hele sekvensen, programmet looper tilbake
+'' hit hver eneste scan.
+'' ERF : 3
+' ////////////////////////////////////////////////////
+  ERF := 3
+
+' Ikke stort man behøver å endre på her! Skal endringer foretaes i programmet,
+' vennligst benytte hver handlerutine. Legg heller aldri skjermoppdateringer her!
+
+repeat
+
+
+      case GAME_FOCUS
+         FOCUS_INIT:
+
+           InitScreen
+           
+         FOCUS_TITLE:
+
+           TitleScreen
+
+
+         FOCUS_PLAY:
+
+           PlayScreen
+
+
+         FOCUS_END:
+
+           GameOver
+
+         FOCUS_SCORE:
+
+           ScoreScreen
+
+         FOCUS_PAUSE:
+
+           PausedScreen
+           
+
+    if GAME_FLAG == FLAG_ERROR
+   
+      case ERF
+        0:
+         GAME_FLAG := FLAG_INIT
+   
+        other:
+          ERH
+
+' waitcnt(clkfreq/300 + cnt)
+
+  i++
+  if i < 20
+   i := 0
+
+
+PRI ScoreCounter
+
+'' ////////////////////////////////////////////////////
+'' ScoreCounter
+'' En liten enkel matematisk operasjon
+'' ERF : 4
+' ////////////////////////////////////////////////////
+  ERF := 4
+
+    If Score > 0
+    
+     Score := (Score - 2)
+
+
+
+Pri Operation(i)
+
+'' ////////////////////////////////////////////////////
+'' Operation(i)
+'' Blink med en X for å indikere operasjon
+'' var 1,2
+'' ERF : 5
+' ////////////////////////////////////////////////////
+  ERF := 5
+
+   case i
+    1:
+     tex(0,0,string("X"))
+    2:
+     tex(0,0,string(" "))
+
+
+Pri GameOver | i, c, sc
+
+'' ////////////////////////////////////////////////////
+'' GameOver
+'' Spill over
+'' Den kjipeste skjermen i spillet!
+'' ERF : 6
+' ////////////////////////////////////////////////////
+  ERF := 6
+  
+
+
+Case Gameplay
+ 0:
+  HelpScreen(string("3.txt"),FOCUS_END)  ' Last tekstfil med Game over innhold. (Nytt etter Build 100)
+  SC := 0
+  Gameplay :=1
+
+ 1: 
+   repeat
+     c++
+     waitcnt(clkfreq/15 + cnt)
+     if c > 5
+       col(08)
+       outa[LED_BLUE] :=1
+     if c < 5
+       col(0)
+       outa[LED_BLUE] :=0
+     if c > 10
+      c:= 0  
+      sc++
+ 
+ 
+     if (wav.getBytePosition) == ((wav.getByteSize) or 0)
+      wav.play(string("6.wav"))
+      wav.setRightVolume(13)
+      wav.setLeftVolume(13)
+      wav.overridesong(1)
+ 
+ 
+     
+     if sc == 5
+      text.out($00)
+      gflag := 0
+      GAME_FLAG := FLAG_2ND_RUN   '' Hit er 2ND_RUN flyttet, da har vi mulighet til å sette neste spiller.
+      GAME_FOCUS := FOCUS_SCORE   '' Shift til ScoreScreen!
+      sc :=0 
+      text.usewindow(0)
+      col($08)
+      sc := 0
+      Gameplay := 0
+      return
+ 
+     if DEBUG == TRUE
+      dex(5,8,((wav.getByteSize) - (wav.getBytePosition)))
+      text.usewindow(0)
+      dex(0,12,sc) 
+     
+      
+      
+PRI InitScreen | i ,c, x
+
+'' ////////////////////////////////////////////////////
+'' InitScreen
+'' Initialisering
+'' Start alle prosesser
+'' ERF : 7
+' ////////////////////////////////////////////////////
+  ERF := 7
+
+     if DEBUG == TRUE
+      dex(14,07,ld)
+    
+
+   
+   '  c:= $07
+    if GAME_FLAG == FLAG_INIT
+     col(08)                  '  5 7 9   3 5   9
+     tex(05,05,@brand)        '  v:5 Rel:9 Bld:104
+     tex(05,06,@us)
+     tex(05,07,string("V:"))
+     dex(07,07,VERSION)
+     tex(09,07,string("Rel:"))
+     dex(13,07,RELEASE)
+     tex(15,07,string("Bld:"))
+     dex(19,07,BUILD)
+     if i > 10
+      handleINIT
+      i:=0
+
+     
+    else
+     tex(05,05,string("PLESE WAIT"))
+     if i > 130
+      handleINIT
+      i:=0
+
+    
+    case ld
+     0: TEX(20,13,string("| |"))
+     1: TEX(20,13,string("/ \"))
+     2: TEX(20,13,string("- -"))
+     3: TEX(20,13,string("\ /"))
+     
+    ld ++
+    if ld == 3
+     ld := 0
+    
+    i++
+'    if i > 40
+
+       
+'       handleINIT
+       'ld++
+       
+'       i:=0
+
+  
+    
+Pri PlayScreen | i, z, x, a, y,f,g
+
+'' ////////////////////////////////////////////////////
+'' PlayScreen
+'' Spillskjerm
+'' Her skjer alt under spillet
+'' ERF : 8
+' ////////////////////////////////////////////////////
+  ERF := 8
+   ' husk: tex(0,13,(stg.StrRepeat (string("-="), 20)))
+
+     ' 0123456789012345678901234567890123456789
+' 0              Amazing Maze Race              (@brand:11,0)
+' 1   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 3)       
+' 2                                             (Window 1)
+' 3                                             (Window 6)
+' 4                                                  |
+' 5                                                  |
+' 6                                                  |
+' 7                                                  |
+' 8                                             (Window 6)
+' 9   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 4)
+' 10  Spillerens navn                           (@KB:0,10) (Window 2)
+' 11  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 5)
+' 12   Score: (2,12)                Treff:  (29,12)
+' 13   @Score:2,13                  @HitCntr:29,13
+
+
+ wav.setRightVolume(15)
+ wav.setLeftVolume(15)
+    
+
+ CASE Gameplay
+   0:
+    text.out(0)
+    text.out($01)
+    Skjerm(3,0,0,127,SVART,ScreenW)
+    Skjerm(4,0,0,127,SVART,ScreenW)
+    Skjerm(5,0,0,127,SVART,ScreenW)
+    tex(11, 0, @brand)
+    tex(2, 12, string("Poeng:"))
+    tex(29, 12, string("Treff: "))
+    repeat i from 0 to 10                    ' Print navnet på skjermen i spill-modus
+     tex(0+i,10,stg.strtoupper(@kb[i-1]))
+    z:=0
+    y:=0
+    g:=0
+    'debug
+    f:=1
+     'setwindow (w, xleft, ytop, xcols, yrows)
+    Gameplay := 1
+
+   1:
+    text.usewindow(0)
+    dex(2, 13, score)
+    dex(29,13,hitcntr)
+
+     if score > 20
+          
+      text.usewindow(1)
+      text.out($17)
+      text.out(13)
+      tex(y+1,0,@ETAk)           ' TAKE
+      tex(y,0,string(" "))       ' slett tekst før
+      tex(y+16,0,string(" "))    ' slett tekst etter
+      text.usewindow(0) 
+
+      'debug
+     
+    if DEBUG == TRUE
+      dex(0, 4, g)
+      dex(5, 4, f)
+      dex(10, 4, z)
+      dex(15, 4, y)
+      dex(0,5,((wav.getByteSize) - (wav.getBytePosition)))
+      dex(20, 4, a)
+      dex(25,4,gflag)
+
+      
+   
+    case GAME_FOCUS
+        FOCUS_PLAY:
+   
+          
+          
+         a++        ' Score-teller
+         x++        ' Lys mot score-teller
+         g++
+
+
+          if a > 10 
+             ScoreCounter
+              a := 0
+          
+          ' Kalkulering for å scrolle tekst frem og tilbake på skjerm
+          if g == 5
+           case f
+            1:
+             y++
+              if y == 24
+               f:=2
+            2:
+              y--
+              if y == 0
+               f:=1
+           g:=0 
+          
+          if score < 20
+            col(3)
+
+
+
+          if (wav.getBytePosition) == (wav.getByteSize)
+             wav.play(string("2.wav"))
+
+          if INA[MAZE] == 1 and gflag == 0
+            gflag := 1
+
+          if INA[MAL] == 1 and gflag == 0
+            gflag := 2
+
+
+          if gflag == 1
+           tex(5,6,string("Der traff du gitt!"))
+          else
+           tex(5,6,string("                  ")) 
+          
+          case gflag
+
+            1:
+             'gflag == 1 = 0
+             if ina[MAZE] == 0 
+              gflag := 0
+               HandleHit
+        
+
+            2:
+             'gflag == 2 = 0
+             if ina[MAL] == 0 
+               gflag := 0
+
+               outa[2]:=0
+               outa[3]:=0
+               outa[4]:=1
+               text.out($00)
+               gflag := 0
+               GAME_FLAG := FLAG_2ND_RUN   '' Hit er 2ND_RUN flyttet, da har vi mulighet til å sette neste spiller.
+               GAME_FOCUS := FOCUS_SCORE   '' Shift til ScoreScreen!
+               DoScoreBoard
+              Gameplay:=0
+              return
+ 
+          if score < 1
+                wav.setRightVolume(13)
+                wav.setLeftVolume(13)
+               wav.play(string("6.wav"))
+               wav.overridesong(1)
+               outa[2]:=0
+               outa[3]:=0
+               outa[4]:=1
+               text.out($00)
+               gflag := 0
+               Gameplay:=0
+               DoScoreBoard
+               GAME_FLAG := FLAG_2ND_RUN   '' Hit er 2ND_RUN flyttet, da har vi mulighet til å sette neste spiller.
+               GAME_FOCUS := FOCUS_END     '' Shift til GameOver!
+               return
+
+          if HitCntr == 6 or HitCntr > 6
+               wav.setRightVolume(13)
+               wav.setLeftVolume(13)
+               wav.play(string("6.wav"))
+               wav.overridesong(1)
+               outa[2]:=1
+               outa[3]:=0
+               outa[4]:=0
+               text.out($00)
+               gflag := 0
+               Gameplay:=0
+               DoScoreBoard
+               GAME_FLAG := FLAG_2ND_RUN   '' Hit er 2ND_RUN flyttet, da har vi mulighet til å sette neste spiller.
+               GAME_FOCUS := FOCUS_END     '' Shift til GameOver!
+               return
+      
+
+         'update the score and hitcounter   
+
+      
+      
+          case x
+       
+             5:
+              OUTA[LED_GREEN] := OUTA[LED_GREEN] + 1          
+
+              OUTA[LED_BLUE] := 1
+
+             15:
+              OUTA[LED_RED] := OUTA[LED_RED] + 1
+              OUTA[LED_GREEN] := 1
+       
+             20:
+              OUTA[LED_BLUE] := OUTA[LED_BLUE] + 1
+
+          CASE Score
+
+             1000:
+              OUTA[LED_BLUE]  := 1
+             900:
+              OUTA[LED_BLUE]  := 0
+              OUTA[LED_GREEN] := 1
+             500:
+              OUTA[LED_GREEN] := 0
+              OUTA[LED_RED]   := 1
+             200:
+              OUTA[LED_RED]   := 0
+              OUTA[LED_BLUE]  := 1
+             100:
+              OUTA[LED_BLUE]  := 0
+              OUTA[LED_RED]   := 1
+
+
+          
+          if x > 21
+           x := 0
+          if a > 60
+           a := 0
+       other:
+          ERF := 8 
+        GAME_FLAG:= FLAG_ERROR
+    
+   other:
+          ERF := 88 
+        GAME_FLAG:= FLAG_ERROR
+    
+
+
+
+Pri TitleScreen
+
+'' ////////////////////////////////////////////////////
+'' TitleScreen
+'' FOCUS_TITLE
+'' Hovedtask for Tittelskjerm
+'' ERF : 9
+' ////////////////////////////////////////////////////
+  ERF := 9
+
+ 
+
+ handletitle       ' så enkelt!
+
+ 
+PRI HelpScreen(hfile,focus_return) | n,x
+
+'' ////////////////////////////////////////////////////
+'' HelpScreen(hfile,focus_return)
+'' FOCUS_(return)
+'' Task for å plassere tekst fra *.txt fil på SD kort
+'' i Window 6, husk å referer hvem GAME_FOCUS du sender
+'' fra!
+'' ERF : 99
+' ////////////////////////////////////////////////////
+  ERF := 99
+
+  
+
+  x:=2
+
+  sd.mountPartition(0)
+  waitcnt(clkfreq/20 + cnt)   
+  if SD.openFile(hfile, "R")
+    text.usewindow(6)
+    text.out(0)
+    case x
+         1:
+           text.usewindow(0)
+           GAME_FLAG := FLAG_2ND_RUN
+           Game_FOCUS := (focus_return)
+           
+         other:
+'          **************************************
+'          Les og print tekst i filen frem til
+'          n == NUL
+
+          repeat until n == 0
+           n:=sd.readbyte
+
+        
+
+           case n
+             "a".."z":        ' a til z
+              text.out(n)
+             "A".."Z":        ' A til Z
+              text.out(n)
+
+             "0".."9":        ' 0 til 9
+              text.out(n)
+
+             "!":             ' Linjeskift
+              text.out($0D)  
+
+             ".",",","?"," ": ' Tillatte spesialtegn
+              text.out(n)
+              
+            0: 
+        
+             x:=1
+
+
+
+
+  else
+    GAME_flag := FLAG_ERROR
+    erh
+        
+    
+Pri ScoreScreen | i, x, pause, p
+
+'' ////////////////////////////////////////////////////
+'' ScoreScreen
+'' FOCUS_SCORE
+'' Hovedskjerm for scoreoppdatering
+'' ERF : 10
+' ////////////////////////////////////////////////////
+  ERF := 10
+
+     ' 0123456789012345678901234567890123456789
+' 0              Amazing Maze Race              (@brand:11,0)
+' 1   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+' 2   
+' 3  
+' 4   
+' 5   
+' 6                  @SCORE
+' 7
+' 8   
+' 9   -=-=-=Spillet er slutt, tast ENTER=--=-=
+' 10  Spillerens navn                           (@KB:0,10)
+' 11  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+' 12    
+' 13   
+
+ text.usewindow(0)
+
+ CASE Gameplay
+   0:
+'    **************************************
+'    Bygg GUI og start temamusikk
+
+    Skjerm(3,0,0,127,SVART,ScreenW)
+    Skjerm(4,0,0,127,SVART,ScreenW)
+    Skjerm(5,0,0,127,SVART,ScreenW)
+     text.usewindow(0)
+     wav.setRightVolume(13)
+     wav.setLeftVolume(13)
+     wav.play(string("1.wav"))
+     wav.overridesong(1)
+     pause:=0
+
+     lcol(BlaINV)
+     tex(11, 0, @brand)
+     lcol(HVIT)
+     if score > 800 and score < 1000
+      tex(00,12,@s800)
+     if score > 600 and score < 800
+      tex(00,12,@s600)
+     if score > 300 and score < 600
+      tex(00,12,@s300)
+     if score > 100 and score < 300
+      tex(00,12,@s50)
+     if score > 1 and score < 100
+      tex(00,12,@s1)
+     if score < 0
+      tex(00,12,@s0)
+     repeat i from 0 to 10                    ' Print navnet på skjermen i spill-modus
+      tex(0+i,10,stg.strtoupper(@Score1STName[i-1]))
+     tex(8,9,string("Spillet er slutt, tast ENTER"))
+     
+     
+'    **************************************
+'    Ferdig bygget, sett Gameplay := 1
+
+    Gameplay := 1
+
+   1:
+
+'    **************************************
+'    Her fortsetter spillet:
+
+    'debug
+     if DEBUG == TRUE
+      dex(0, 4, PlayRound)
+      dex(10,4, gflag)
+      dex(5,2,((wav.getByteSize) - (wav.getBytePosition)))
+
+     x++
+     if x > 100
+      x:=0
+
+     if x > 50
+      dex(16,6,Score)
+      DEX(22,6,HITCNTR)
+     else
+      tex(16,6,string("           "))
+     if p > 10
+      p:=0
+      pause++
+     p++
+'     **************************************
+'     Denne er ganske fiffig, dersom det ikke er aktivitet i spillet vil pauseskjermen
+'     automatisk slå inn, for info se PRI: PausedScreen 
+     if pause > F_PAUSE
+      col(08)
+      text.out($00)
+      GAME_FOCUS := FOCUS_PAUSE
+      gameplay:=0
+      init:=1
+      return
+
+     
+
+    case GAME_FOCUS
+
+      FOCUS_SCORE:
+        if (wav.getBytePosition) == ((wav.getByteSize) or (wav.getByteSize/(7/8)))
+          wav.setRightVolume(13)
+          wav.setLeftVolume(13)
+          wav.play(string("1.wav"))
+        keycode := (key.key)
+    
+        case keycode
+          $0D: ' return
+           ld:= 0
+           col(08)
+           InitGame
+           PlayRound := ( PlayRound + 1)
+           GamePlay:=0
+           GAME_FLAG := FLAG_2ND_RUN
+           Game_FOCUS := FOCUS_INIT
+           
+
+           
+          $D0: 'F1
+           HelpScreen(string("2.txt"),FOCUS_SCORE)
+           
+     OTHER:
+        GAME_FLAG := FLAG_ERROR
+
+
+PRI DoScoreBoard | a,b,c,d,x,temp,SCR,n 
+
+'' ////////////////////////////////////////////////////
+'' DoScoreBoard
+'' Utfører ScoreBoard
+'' ERF : 11
+' ////////////////////////////////////////////////////
+  ERF := 11
+ {
+ PUB GetData | Index, Temp
+  Index := 0
+  repeat
+    Temp := byte[Data][Index++] 'Read data into Temp 1 byte at a time
+    <do something with Temp>    'Perform task with value in Temp
+  while Temp > 0                'Loop until end found
+
+ 
+
+ 
+   SCR:=INIT_POINTS
+   sd.mountPartition(0)
+   waitcnt(clkfreq/20 + cnt)   
+   if SD.openFile(string("score.txt"), "R")
+   repeat
+     repeat 
+      temp:=byte[sd.readbyte]     ' les data fra score.txt til temp (trur dette shiftes)
+     while temp > 0               ' fortsett til temp er 0 (fil er tom)
+    repeat
+     n:= lookupz(SCR:temp)        ' behandle data i temp-fil, gjør et lokasjonssøk basert på score
+    while n > 0                   ' frem til n er større enn 0, altså et treff på top score
+    SCR--                         ' legg til -1 til score og fortsett til vi finner en verdi
+    if n > 0                      ' når verdi funnet (plassering på høyeste score)
+     abort                        ' Avbryt!
+
+   dex(5,10,n)
+    
+
+ '  Temp := lookup(Index: 25, 300, 2_510, 163, 17, 8_000, 3)          
+
+ }
+  
+  
+   wordmove (@Score4THName, @Score3RDName, 10)
+   wordmove (@Score3RDName, @Score2NDName, 10)
+   wordmove (@Score2NDName, @Score1STName, 10)
+   wordmove (@Score1STName, @kb, 20)
+
+   longmove (@Score3RD, @Score2ND, 15)
+   longmove (@Score2ND, @Score1ST, 15)
+   longmove (@Score1ST, @Score, 15)
+
+   LONGmove (@Hit3RD, @Hit2ND, 5)
+   LONGmove (@Hit2ND, @Hit1ST, 5)
+   LONGmove (@Hit1ST, @HitCntr, 5)
+   
+   
+PRI HandleHit
+
+'' ////////////////////////////////////////////////////
+'' HandleHit
+'' Håndter treff
+'' En enkel matematisk kalkulasjon
+'' ERF : 13
+' ////////////////////////////////////////////////////
+  ERF := 13
+
+   hitcntr := (hitcntr + 1)
+   op.start(5, 50, 4)     ' vibrer 2 ganger, 50 mS
+   waitcnt(clkfreq/2000 + cnt)   
+   score := (score - 75)
+   if hitcntr == 6
+    score := 0
+   return
+pri COL(c)
+
+'' ////////////////////////////////////////////////////
+'' COL(var)
+'' Fargepalett hele aktive vinduet!
+'' Benyttes COL(fargekode)
+'' ERF : 14
+' ////////////////////////////////////////////////////
+  ERF := 14
+
+     text.out($17)
+     text.out(c)
+
+PRI Lcol(c)
+
+'' ////////////////////////////////////////////////////
+'' LCOL(var)
+'' LineColor
+'' Benyttes LCOL(fargekode)
+'' ERF : 42
+' ////////////////////////////////////////////////////
+  ERF := 42
+
+     text.out($07)
+     text.out(c)
+
+pri DEX(x,y,s)
+
+'' ////////////////////////////////////////////////////
+'' DEX(var)
+'' Decimal Entered X
+'' Med koordinater
+'' Benyttes DEX(x,y,tall)
+'' ERF : 15
+' ////////////////////////////////////////////////////
+  ERF := 15
+
+     text.out($0E)
+     text.out(x)
+     text.out($0F)
+     text.out(y)
+     text.dec(s)
+  
+pri SEX(W,x,y,s)
+
+'' ////////////////////////////////////////////////////
+'' SEX(var)
+'' Source Entered X
+'' Med koordinater
+'' Benyttes SEX(w,x,y,source)
+'' ERF : 90
+' ////////////////////////////////////////////////////
+  ERF := 90
+
+     text.out($0E)       'Tekst ut X koordinat
+     text.out(x)         ' X-VAR
+     text.out($0F)       'Tekst ut Y koordinat
+     text.out(y)         ' Y-VAR
+     text.usewindow(W)
+     text.out(s)
+  
+pri TEX(x,y,s)
+
+'' ////////////////////////////////////////////////////
+'' TEX(var)
+'' Text Entered X
+'' Med koordinater
+'' Benyttes TEX(x,y,string)
+'' ERF : 16
+' ////////////////////////////////////////////////////
+  ERF := 16
+
+     text.out($0E)       'Tekst ut X koordinat
+     text.out(x)         ' X-VAR
+     text.out($0F)       'Tekst ut Y koordinat
+     text.out(y)         ' Y-VAR
+     text.str(s)
+
+{
+''     $00 = clear active window
+''     $01 = home in active window
+''     $02 = move to X,Y in active window (X and Y follow)
+''     $03 = cursor left
+''     $04 = cursor right
+''     $05 = cursor up
+''     $06 = cursor down
+''     $07 = select color C (0 - 15) (C follows)
+''     $08 = backspace
+''     $09 = tab (8 spaces per)
+''     $0A = linefeed
+''     $0B = clear to end of line
+''     $0C = clear to end of active window
+''     $0D = return
+''     $0E = move to X in active window (X follows)
+''     $0F = move to Y in active window (Y follows)
+''     $10 = define window W (1 - 15) (W, Left, Top, nCols, nRows follow)
+''     $11 = use window W (0 - 15) (W follows)
+''     $12 = change color C (0 - 15) to FG, BG (C, FG, BG follow)
+''     $17 = change all colors in active window to C (0 - 15) (C follows)
+''     $1F = (ESC) print next character C as-is (C follows)
+}
+
+PRI PausedScreen | g,f,y
+
+'' ////////////////////////////////////////////////////
+'' PausedScreen
+'' Puseskjermen
+'' ERF : 96
+' ////////////////////////////////////////////////////
+  ERF := 96
+
+
+
+ text.usewindow(0)
+
+
+  
+  
+     ' 0123456789012345678901234567890123456789
+' 0              Amazing Maze Race              (@brand:11,0)
+' 1            V.Version.Release.Build          (@Version:14,1 @Release:16,1 @Build:18,1)
+' 2   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+' 3  
+' 4   
+' 5   
+' 6   Lorem ipsum loros orsos isus igus megus   (@s)
+' 7
+' 8   
+' 9   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+' 10  Spillerens navn                           (@KB:0,10)
+' 11  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+' 12   Score: (2,12)                Treff:  (29,12)
+' 13   @Score:2,13                  @HitCntr:29,13
+
+ CASE Gameplay
+   0:
+    Skjerm(3,0,0,127,SVART,ScreenW)
+    Skjerm(4,0,0,127,SVART,ScreenW)
+    Skjerm(5,0,0,127,SVART,ScreenW)
+     text.usewindow(0)
+    lcol(BlaINV)                          
+    tex(8,9,string("  Videre med ENTER-tasten   "))
+    lcol(HVIT)
+     wav.setRightVolume(13)
+     wav.setLeftVolume(13)
+     wav.play(string("7.wav"))
+     wav.overridesong(1)
+     HelpScreen(string("4.txt"),FOCUS_PAUSE)
+     text.usewindow(0)
+     g:=0
+     y:=0
+     f:=1
+     lcol(BlaINV)
+     tex(11, 0, @brand)
+     lcol(HVIT)
+     
+     
+      
+    Gameplay := 1
+
+   1:
+   
+    'debug
+     if DEBUG == TRUE
+      dex(0, 4, PlayRound)
+      dex(10,4, gflag)
+      dex(5,5,g)
+      dex(10,5,f)
+      dex(15,5,y)
+      dex(5,2,((wav.getByteSize) - (wav.getBytePosition)))
+
+    case GAME_FOCUS
+
+      FOCUS_PAUSE:
+      '  text.usewindow(0)
+
+       g++
+       lcol(AquaINV)
+       tex(y+1,10,string("PAUSE!"))
+       tex(y+7,10,string(" "))
+       tex(y,10,string(" "))
+       lcol(HVIT)
+
+          ' Kalkulering for å flytte tekst på skjermen
+          if g == 15
+           case f                  
+            1:                      
+             y++                    
+              if y == 36              
+               f:=2
+            2:
+              y--
+              if y == 0
+               f:=1
+           g:=0 
+
+        if (wav.getBytePosition) == ((wav.getByteSize) or (wav.getByteSize/(7/8)))
+          wav.setRightVolume(13)
+          wav.setLeftVolume(13)
+          wav.play(string("7.wav"))
+        keycode := (key.key)
+    
+        case keycode
+          $0D: ' return
+             ld:= 0
+             col(08)
+             GamePlay:=0
+             text.out(0)
+             GAME_FLAG := FLAG_2ND_RUN
+             Game_FOCUS := FOCUS_TITLE
+            if init == 1
+             ld:= 0
+             col(08)
+             InitGame
+             PlayRound := ( PlayRound + 1)
+             GamePlay:=0
+             GAME_FLAG := FLAG_2ND_RUN
+             Game_FOCUS := FOCUS_INIT
+             init := 0
+
+
+
+           
+          $D0: 'F1
+           HelpScreen(string("5.txt"),FOCUS_PAUSE)
+           
+     OTHER:
+        GAME_FLAG := FLAG_ERROR
+
+      
+Pri HandleTitle | i,k,x,s,z,n,pause,g
+
+'' ////////////////////////////////////////////////////
+'' HandleTitle
+'' Håndter tittelskjerm
+'' FOCUS_TITLE
+'' ERF : 17
+' ////////////////////////////////////////////////////
+
+ ERF := 17
+
+kb:=0
+
+    k:=0
+    x:=0
+    s:=2        '' changed (s=9)->(s=2) 24.2.15 at the request of hr. Per-Anton Hansen to shorten the waiting before start! [ETL]
+    z:=0
+  if GAME_FLAG == FLAG_2ND_RUN
+   title := 50
+
+
+     ' 0123456789012345678901234567890123456789
+' 0              Amazing Maze Race              (@brand:11,0)
+' 1   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 3)       
+' 2                                             (Window 1)
+' 3                                             (Window 6)
+' 4                                                  |
+' 5                                                  |
+' 6                                                  |
+' 7                                                  |
+' 8                                             (Window 6)
+' 9   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 4)
+' 10  Spillerens navn                           (@KB:0,10) (Window 2)
+' 11  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 5)
+' 12   Score: (2,12)                Treff:  (29,12)
+' 13   @Score:2,13                  @HitCntr:29,13
+
+ CASE Gameplay
+   0:
+'    **************************************
+'    Bygg GUI og start temasang
+     Skjerm(3,0,0,127,SVART,ScreenW)
+     Skjerm(4,0,0,127,SVART,ScreenW)
+     Skjerm(5,0,0,127,SVART,ScreenW)
+     pause:=0
+     wav.play(string("3.wav"))
+     wav.overrideSong(1)
+     LCOL(AquaINV)
+     TEX(0,3,STRING(" Navn:                      Score:  Hit:    "))
+     lcol(hvit)          
+'    Sett Brandname i farget tekst
+     lcol(BlaINV)
+     tex(11, 0, @brand)
+     lcol(HVIT)
+     tex(0,12,@tast)
+
+'    **************************************
+'    Bygg siste spilte med poeng
+
+       repeat i from 0 to 10
+                 tex(5+i,2,stg.strtoupper(@kb[i-1]))
+       repeat i from 0 to 10                    ' Print navnet på skjermen i spill-modus
+                  tex(0+i,4,stg.strtoupper(@Score1STName[i-1]))
+       repeat i from 0 to 10                    ' Print navnet på skjermen i spill-modus
+                  tex(0+i,5,stg.strtoupper(@Score2NDName[i-1]))
+       repeat i from 0 to 10                    ' Print navnet på skjermen i spill-modus
+                  tex(0+i,6,stg.strtoupper(@Score3RDName[i-1]))
+ 
+      if PlayRound => 1
+       dex(28,4,Score1ST)
+       DEX(36,4,HIT1ST)
+      if PlayRound => 2
+       dex(28,5,Score2ND)
+       DEX(36,5,HIT2ND)
+      if PlayRound => 3
+       dex(28,6,Score3RD)
+       DEX(36,6,HIT3RD)
+       
+
+'    **************************************
+'    Ferdig bygget, sett Gameplay := 1
+
+    Gameplay := 1
+
+   1:
+    repeat
+
+'     **************************************
+'     Herfra ligger spillet, GUI ligger i
+'     skjermminnet så vi slipper å skrive
+'     på nytt
+
+      'debug
+       if DEBUG == TRUE
+        dex(0, 4, PlayRound)
+        dex(0,5,gameplay)
+        dex(10,8,gflag)
+        dex(20,10,pause)
+        dex(0,12,((wav.getByteSize) - (wav.getBytePosition)))
+   
+
+
+'     **************************************
+'     Les inn tastatur
+      keycode := (key.key) 
+
+        CASE title
+
+            50:
+             title := 100
+             
+            
+           
+            100:
+             'Skriv inn ditt navn!
+
+
+                 IF (wav.getBytePosition) == (wav.getByteSize)
+                   wav.play(string("3.wav"))
+
+
+               
+
+                if k > 50
+'                   **************************************
+'                   Blinkende markør, denne forteller oss
+'                   at VCL registeret ikke henger.
+                    text.usewindow(2)
+                    text.out($17)
+                    text.out(08)
+                    tex(2+i,10,string(" "))
+                    text.usewindow(0)
+                    tex(2+x,10,string("_"))
+                else
+                    text.usewindow(2)
+                    text.out($17)
+                    text.out(15)
+                    tex(2+i,10,string(">"))
+                    text.usewindow(0)
+                    tex(2+x,10,string(" "))
+
+'                   **************************************
+'                   Print spillernavn
+              repeat i from 0 to 10
+               tex(1+i,10,stg.strtoupper(@kb[i-1]))
+'                   **************************************
+'                   Ny case på tastatur, print alt som er 
+'                   gyldige tegn. 
+              case keycode
+               $41..$5A:  'A-Z
+                 kb[x]:=keycode
+                x++
+               $0D: ' return                
+                 text.out($00)
+                 Gameplay:= 0  
+                 title:=200
+                 text.usewindow(0)
+                wav.setRightVolume(15)
+                wav.setLeftVolume(15)
+
+                'wav.play(string("9.wav"))  '' removed 24.2.15 at the request of hr. Per-Anton Hansen to shorten the waiting before start! [ETL]
+                'wav.overrideSong(1)        '' removed 24.2.15 at the request of hr. Per-Anton Hansen to shorten the waiting before start! [ETL]
+                
+
+               $D0: 'F1
+                 HelpScreen(string("2.txt"),FOCUS_TITLE)
+'                   **************************************
+'                   Nedtelling før start av spill, her må spilleren stå
+'                   klar til start, poeng teller ned fra neste skjerm 
+            200:
+
+
+             'neste post
+              tex(0,5,string("Hold kontrollen klar!"))
+              dex(20,7,s)
+              if (wav.getBytePosition) == ((wav.getByteSize) or (wav.getByteSize/(7/8)))        '' 24.2.15, this IF-statement is obsolete now, but is included, now we know that the right volume and melody is set! [ETL]
+               wav.setRightVolume(15)
+               wav.setLeftVolume(15)
+               wav.play(string("4.wav"))
+               wav.overrideSong(1)          '' added 24.2.15 at the request of hr. Per-Anton Hansen to shorten the waiting before start! [ETL]
+              if s < 0
+                col(08)
+                text.out($00)
+                tex(5,5,string("Da starter vi!"))
+                waitcnt(clkfreq/1 + cnt)
+                wav.play(string("5.wav"))
+                wav.overrideSong(1)
+               wav.setRightVolume(13)
+               wav.setLeftVolume(13)
+
+                col(08)
+                text.out($00)
+                GAME_FOCUS := FOCUS_PLAY
+                return
+
+            OTHER:
+              GAME_FLAG := FLAG_ERROR
+
+'     **************************************
+'     Loop temasang
+
+
+
+'     **************************************
+'     Denne er ganske fiffig, dersom det ikke er aktivitet i spillet vil pauseskjermen
+'     automatisk slå inn, for info se PRI: PausedScreen 
+        if pause > F_PAUSE
+          col(08)
+          text.out($00)
+          GAME_FOCUS := FOCUS_PAUSE
+          gameplay:=0
+          return
+
+'     **************************************
+'     Lokale tellere, dette får alt til å gå
+'     rundt. 
+        z++
+        k++
+        if k > 100
+         k := 0
+        if z > 11
+         if title > 110
+          g++
+           if g > 10
+            g:=0
+            s--
+         z:=0
+         if title < 110
+          pause++
+
+         
+PRI Skjerm(W,X,Y,Character,Farge,Reps)
+
+'' ////////////////////////////////////////////////////
+'' Skjerm(W,X,Y,Character,Farge,Reps)
+'' Håndter skjermprint i forskjellige vinduer
+'' Print og GUI
+'' ERF : 98
+' ////////////////////////////////////////////////////
+  ERF := 98
+
+''      0123456789012345678901234567890123456789
+'' 0              Amazing Maze Race              (@brand:11,0)
+'' 1   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 3)       
+'' 2                                             (Window 1)
+'' 3                                             (Window 6)
+'' 4                                                  |
+'' 5                                                  |
+'' 6                                                  |
+'' 7                                                  |
+'' 8                                             (Window 6)
+'' 9   -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 4)
+'' 10  Spillerens navn                           (@KB:0,10) (Window 2)
+'' 11  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=  (Window 5)
+'' 12   Score: (2,12)                Treff:  (29,12)
+'' 13   @Score:2,13                  @HitCntr:29,13
+                                             
+     ' Sett opp koordinater
+     text.out($0E)       'Tekst ut X koordinat
+     text.out(x)         ' X-VAR
+     text.out($0F)       'Tekst ut Y koordinat
+     text.out(y)         ' Y-VAR             
+     text.usewindow(W)   'velg vindu vi jobber i
+
+     IF W > 0
+       text.out($01)
+       TEXT.OUT($00)
+     
+     col(Farge)          'sett aktuell farge
+     repeat reps         'repetisjoner av karakter
+      text.out(Character)'print
+     text.usewindow(0)   'tilbake til vindu 0
+     
+
+
+PRI HandleINIT | n, fin, t, x
+
+'' ////////////////////////////////////////////////////
+'' HandleINIT
+'' Håndter Initialisering
+'' BOOTSEKVENS!
+'' ERF : 19
+' ////////////////////////////////////////////////////
+  ERF := 19
+
+  case GAME_FLAG
+
+   FLAG_INIT:
+
+           CASE int 
+           
+             150:
+              tex(5, 10, string("Trykker falske penger"))
+               
+               if key.start(10,11)
+                waitcnt(clkfreq/2 + cnt)
+                 int := 200
+               else
+                GAME_flag := FLAG_ERROR
+
+             200:
+               tex(5, 10, string("Spiser konstanter    "))
+               waitcnt(15_000_000 + cnt)
+               int := 250
+
+             250:
+               tex(5, 10, string("Krysser kretser      "))               
+
+               IF wav.begin(lPin, rPin, doPin, clkPin, diPin, csPin, wpPin, cdPin)
+                wav.setRightVolume(14)
+                wav.setLeftVolume(14)
+                waitcnt(15_000_000 + cnt)
+    
+                wav.play(string("4.wav"))
+                int:=300
+
+               Else
+                 GAME_FLAG := FLAG_ERROR
+                      
+             300:
+               tex(5, 10, string("Irriterer ildfluer  "))
+               op.Toggle(2,200,6)
+               op.Toggle(3,200,6)
+               op.Toggle(4,200,7)          '' 24.2.15 set so that there is light on after boot [ETL]
+               int := 310
+
+             310:
+               tex(5, 10, string("Mater katter        "))
+               waitcnt(15_000_000 + cnt)
+               int := 320
+              
+             320:
+               tex(5, 10, string("Kaster variabler    "))
+               'Test utgang for vibrator
+               op.Toggle(5,100,4)
+               waitcnt(clkfreq/10 + cnt)
+                int:= 325
+
+             325:
+               tex(5, 10, string("Politisk opprør     "))
+                dira[MAZE] := 0 ' MAZE pin til inngang
+                dira[MAL]  := 0 ' MÅL pin til inngang
+                int:= 330
+
+             330:
+
+               tex(5, 10, string("KJØR!               "))
+               GAME_FOCUS := FOCUS_TITLE       ' FOCUS til tittelmodus
+               waitcnt(clkfreq/4 + cnt)        ' la alt roe ned, og start spillet
+                wav.setRightVolume(12)
+                wav.setLeftVolume(12)
+               text.out($00)
+            other:
+             GAME_flag := FLAG_ERROR
+               
+
+   OTHER:
+    ' Hvis man er rutet hit uten at INIT er satt er det noe galt!
+    GAME_FLAG := FLAG_2ND_RUN
+    GAME_FOCUS := FOCUS_TITLE
+    key.clearkeys
+    x:=0
+
+
+    repeat 10
+     kb[x]:=keycode
+     x++
+    text.out($00) 
+
+Pri ERH | c
+
+'' ////////////////////////////////////////////////////
+'' ERH
+'' Errorhandler
+'  ERF = Rutinenummer hvor siste oppgave ble utført.
+'  Nytt fra Build 100 er at alle tasker har ERF innbygget
+'' FLAG_ERROR
+' ////////////////////////////////////////////////////
+    text.out($00)
+      repeat
+       
+       tex(5, 9, @ERROR)
+       dex(5, 10, int)
+       dex(5, 12, ERF)
+       tex(5, 2, @REstart)
+       if c > 5
+         Operation(1)
+         col(08)
+       if c < 5
+         Operation(2)
+         col(15)
+       if c > 10
+         c:= 0  
+       c++
+
+       
+DAT
+
+' ////////////////////////////////////////////////////
+'' Globale DATA
+'' 
+' ////////////////////////////////////////////////////
+
+
+ Brand            byte "Amazing Maze Race",0
+
+ ERROR            byte "GURU CRITICAL! ",0
+ 
+ REstart          byte "Noter ERH-nummeret og restart enheten",$0D
+                  byte "Skjer dette igjen, ring service!",0
+
+ us               byte "Tord, Anders, Kristian, Einar",0
+
+ s800             byte "Dette må da være juks,",$0D              '800-1000
+                  byte "Ingen vinner så lett!",0
+
+ s600             byte "Kjempe bra!",0                           '600-800
+
+ s300             byte "Helt ok, men forsøk gjerne igjen",0      '300-600
+ 
+ s50              byte "Jaja, bedre lykke nestegang!",0          '100-300
+
+ s1               byte "Huffda! Dette gikk ikke så bra",$0D      'under 1p
+                  byte "Prøv en gang til...",0
+                  
+ s0               byte "Det var veldig nære!",$0D                'mindre en 0
+                  byte "Prøv en gang til...",0
+ 
+ Tast             byte "Vær vennlig å taste inn ditt navn!",$0D
+                  byte "Fortsett med ENTER-tasten",0
+
+ ETAK             byte "TAKE industries",0                       
+  
